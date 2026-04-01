@@ -1,256 +1,191 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import RecommendPanel from '../../components/RecommendPanel';
-import ResultsSection from '../../components/ResultsSection';
-import ModelModal from '../../components/ModelModal';
-import { useModels } from '../../hooks/useModels';
+import { useState } from 'react';
 
-const CATEGORIES = [
-  { key: 'me', label: 'Just me', icon: '👤', desc: 'Personal projects & learning' },
-  { key: 'team', label: 'My team', icon: '👥', desc: 'Team collaboration & workflows' },
-  { key: 'company', label: 'My company', icon: '🏢', desc: 'Enterprise-scale deployment' },
+const CATEGORY_TILES = [
+  { id: 'write', title: 'Write content', subtitle: 'Emails, posts, stories' },
+  { id: 'images', title: 'Create images', subtitle: 'Logos, ads, social posts' },
+  { id: 'build', title: 'Build something', subtitle: 'Apps, tools, workflows' },
+  { id: 'automate', title: 'Automate work', subtitle: 'Docs, reports, outreach' },
+  { id: 'analyze', title: 'Analyse data', subtitle: 'KPIs, trends, insights' },
+  { id: 'explore', title: 'Just exploring', subtitle: 'See what AI can do' },
+];
+
+const MODEL_TILES = [
+  { id: 'gpt4o', name: 'GPT‑4.0', provider: 'OpenAI', tier: 'PREMIUM' },
+  { id: 'claude', name: 'Claude 3 Sonnet', provider: 'Anthropic', tier: 'FREE' },
+  { id: 'gemini', name: 'Gemini 2.0 Pro', provider: 'Google', tier: 'FREE' },
+  { id: 'llama', name: 'Llama 3.1 70B', provider: 'Meta', tier: 'FREE' },
 ];
 
 export default function ChatHubPage() {
-  const { models, loading: modelsLoading } = useModels();
-  const [sessions, setSessions] = useState([]);
-  const [activeSessionIndex, setActiveSessionIndex] = useState(0);
-  const [selectedModel, setSelectedModel] = useState(null);
-  const [category, setCategory] = useState('me');
-  const [chatMessages, setChatMessages] = useState([
-    { id: 'welcome', role: 'bot', text: 'Hi! I\u2019m your NexusAI guide. Describe what you\u2019re building and I\u2019ll recommend the best models for you.' },
-  ]);
-  const [chatInput, setChatInput] = useState('');
-  const chatEndRef = useRef(null);
+  const [activeCategoryId, setActiveCategoryId] = useState(CATEGORY_TILES[0].id);
+  const [activeModelId, setActiveModelId] = useState(MODEL_TILES[0].id);
+  const [composerText, setComposerText] = useState('');
 
-  const activeSession = sessions[activeSessionIndex] || { query: '', results: [] };
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
-
-  const handleResults = (results, query) => {
-    const session = {
-      id: Date.now(),
-      query,
-      createdAt: new Date().toISOString(),
-      results,
-    };
-    setSessions((prev) => [session, ...prev]);
-    setActiveSessionIndex(0);
-
-    // Add bot message about results
-    if (results.length > 0) {
-      const names = results.map((r) => r.model?.name).filter(Boolean);
-      setChatMessages((prev) => [
-        ...prev,
-        { id: Date.now(), role: 'user', text: query },
-        {
-          id: `${Date.now()}-bot`,
-          role: 'bot',
-          text: `Great question! I found ${results.length} strong matches: ${names.join(', ')}. The top pick is ${names[0]} with a ${results[0].matchPercentage}% match. Check the results on the right for full details!`,
-        },
-      ]);
-    } else {
-      setChatMessages((prev) => [
-        ...prev,
-        { id: Date.now(), role: 'user', text: query },
-        {
-          id: `${Date.now()}-bot`,
-          role: 'bot',
-          text: 'I couldn\u2019t find strong matches for that. Try mentioning what you want to create \u2014 like "generate images", "write code", "transcribe audio", or "translate content".',
-        },
-      ]);
-    }
-  };
-
-  const handleSendMessage = () => {
-    const trimmed = chatInput.trim();
-    if (!trimmed) return;
-
-    const nextMessages = [
-      ...chatMessages,
-      { id: Date.now(), role: 'user', text: trimmed },
-    ];
-
-    const topModels = (activeSession.results || []).slice(0, 3).map((r) => r.model?.name).filter(Boolean);
-    const categoryHint = category === 'company'
-      ? ' For enterprise use, I\u2019d prioritize models with API access and strong reliability.'
-      : category === 'team'
-        ? ' For team use, consider models with good cost efficiency and collaboration-friendly APIs.'
-        : '';
-
-    const suggestionText = topModels.length
-      ? `Based on your current search, I\u2019d recommend ${topModels.join(', ')}.${categoryHint} Click any result card to see full capability scores and pricing.`
-      : `Tell me what you\u2019re building \u2014 mention the type of content (images, code, audio, text) and any constraints like budget or speed.${categoryHint}`;
-
-    nextMessages.push({
-      id: `${Date.now()}-bot`,
-      role: 'bot',
-      text: suggestionText,
-    });
-
-    setChatMessages(nextMessages);
-    setChatInput('');
-  };
-
-  const handleChatKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
+  const activeModel = MODEL_TILES.find((m) => m.id === activeModelId) || MODEL_TILES[0];
 
   return (
-    <main>
-      <div className="app-wrapper">
+    <main className="chat-main">
+      <div className="app-wrapper mk-app-full">
+        {/* Tabs strip at top */}
+        <div className="chub-session-tabs">
+          <button type="button" className="chub-session-tab chub-session-tab-active">
+            <span className="chub-session-dot-sm" />
+            <span className="chub-session-label">Chat Hub</span>
+          </button>
+          <button type="button" className="chub-session-tab">
+            <span className="chub-session-label">Agents</span>
+          </button>
+          <button type="button" className="chub-session-tab">
+            <span className="chub-session-label">Discover New</span>
+          </button>
+        </div>
 
-        {/* Hero */}
+        {/* Big hero heading */}
         <section className="chub-hero">
-          <div className="hero-badge">
-            <span>💬</span>
-            <span>Guided Discovery</span>
-          </div>
-          <h1 className="chub-hero-title">
-            Tell us what you&apos;re building.
-            <br />
-            <span className="hero-title-highlight">We&apos;ll match the right models.</span>
-          </h1>
-          <p className="hero-sub">
-            Describe your use case in plain language and we&apos;ll recommend the top AI models
-            from our database of {models.length || '17'}+ options — with match scores, reasoning, and pricing.
-          </p>
+          <h1 className="chub-hero-title">Welcome! I&apos;m here to help you</h1>
         </section>
 
-        {/* Category selector */}
+        {/* Category buttons row */}
         <section className="chub-category-section">
-          <span className="chub-category-label">Who is this for?</span>
+          <p className="chub-category-label">What would you like to do today?</p>
           <div className="chub-category-row">
-            {CATEGORIES.map((cat) => (
+            {CATEGORY_TILES.map((tile) => (
               <button
-                key={cat.key}
+                key={tile.id}
                 type="button"
-                className={`chub-category-pill${category === cat.key ? ' chub-category-active' : ''}`}
-                onClick={() => setCategory(cat.key)}
+                className={`chub-category-pill${
+                  activeCategoryId === tile.id ? ' chub-category-active' : ''
+                }`}
+                onClick={() => setActiveCategoryId(tile.id)}
               >
-                <span className="chub-category-icon">{cat.icon}</span>
-                <div className="chub-category-text">
-                  <span className="chub-category-name">{cat.label}</span>
-                  <span className="chub-category-desc">{cat.desc}</span>
-                </div>
+                <span className="chub-category-icon">✨</span>
+                <span className="chub-category-text">
+                  <span className="chub-category-name">{tile.title}</span>
+                  <span className="chub-category-desc">{tile.subtitle}</span>
+                </span>
               </button>
             ))}
           </div>
         </section>
 
-        {/* Loading state */}
-        {modelsLoading && (
-          <div className="chub-status">
-            <div className="spinner spinner-dark" />
-            <span>Loading AI models…</span>
-          </div>
-        )}
-
-        {/* Main two-column layout */}
-        <div className="chub-grid">
-
-          {/* Left: Recommend + Chat */}
-          <div className="chub-left">
-            <RecommendPanel onResults={handleResults} models={models} />
-
-            {/* Chat thread */}
-            <div className="chub-chat-card">
-              <div className="chub-chat-head">
-                <span className="chub-chat-dot" />
-                <span className="chub-chat-label">Chat with NexusAI</span>
-              </div>
-              <div className="chub-chat-body">
-                {chatMessages.map((m) => (
-                  <div
-                    key={m.id}
-                    className={`chub-bubble ${m.role === 'bot' ? 'chub-bubble-bot' : 'chub-bubble-user'}`}
-                  >
-                    {m.role === 'bot' && <span className="chub-bubble-avatar">✦</span>}
-                    <span className="chub-bubble-text">{m.text}</span>
-                  </div>
-                ))}
-                <div ref={chatEndRef} />
-              </div>
-              <div className="chub-chat-foot">
-                <textarea
-                  className="chub-chat-input"
-                  rows={2}
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={handleChatKeyDown}
-                  placeholder="Ask about models, pricing, capabilities…"
-                />
+        {/* Main body: models rail + center welcome card */}
+        <div className="chub-shell">
+          {/* Left: models list */}
+          <aside className="chub-models-rail">
+            <div className="chub-models-head">
+              <span className="chub-models-title">Models</span>
+              <span className="chub-models-count">{MODEL_TILES.length} available</span>
+            </div>
+            <div className="chub-models-search">
+              <input
+                type="text"
+                className="chub-models-input"
+                placeholder="Search 525+ models…"
+                readOnly
+              />
+            </div>
+            <div className="chub-models-list">
+              {MODEL_TILES.map((m) => (
                 <button
+                  key={m.id}
                   type="button"
-                  className="chub-chat-send"
-                  onClick={handleSendMessage}
+                  className={`chub-model-pill${
+                    activeModelId === m.id ? ' chub-model-pill-active' : ''
+                  }`}
+                  onClick={() => setActiveModelId(m.id)}
                 >
-                  Send →
+                  <div className="chub-model-pill-main">
+                    <span className="chub-model-pill-name">{m.name}</span>
+                    <span className="chub-model-pill-provider">{m.provider}</span>
+                  </div>
+                  <span className="chub-model-pill-tier">{m.tier}</span>
                 </button>
+              ))}
+            </div>
+          </aside>
+
+          {/* Center card (matches screenshot) */}
+          <section className="chub-left">
+            <article className="chat-welcome-card">
+              <header className="chat-welcome-head">
+                <button type="button" className="chat-welcome-pill">
+                  ✦ Chat Hub
+                </button>
+              </header>
+              <div className="chat-welcome-inner">
+                <h2 className="chat-welcome-title">Welcome! I&apos;m here to help you</h2>
+                <p className="chat-welcome-sub">
+                  No tech background needed. Tell me what you&apos;d like to achieve — I&apos;ll
+                  help you discover what&apos;s possible, step by step.
+                </p>
+
+                <section className="chat-welcome-grid">
+                  {CATEGORY_TILES.map((tile) => (
+                    <button
+                      key={tile.id}
+                      type="button"
+                      className="chat-welcome-tile"
+                      onClick={() => setActiveCategoryId(tile.id)}
+                    >
+                      <div className="chat-welcome-tile-icon">✨</div>
+                      <div className="chat-welcome-tile-main">
+                        <div className="chat-welcome-tile-title">{tile.title}</div>
+                        <div className="chat-welcome-tile-sub">{tile.subtitle}</div>
+                      </div>
+                    </button>
+                  ))}
+                </section>
+                <p className="chat-welcome-hint">
+                  Or type anything below — there are no wrong answers.
+                </p>
+              </div>
+            </article>
+
+            {/* Bottom composer bar, like screenshot */}
+            <div className="chat-composer">
+              <textarea
+                className="chat-composer-input"
+                rows={2}
+                placeholder="Describe your project, ask a question, or just say hi — I’m here to help…"
+                value={composerText}
+                onChange={(e) => setComposerText(e.target.value)}
+              />
+              <button type="button" className="chat-composer-send">
+                ➤
+              </button>
+            </div>
+          </section>
+
+          {/* Right column: active model summary card */}
+          <aside className="chub-right">
+            <div className="chub-active-results">
+              <div className="chub-results-heading">
+                <h3>
+                  Active model: <em>{activeModel.name}</em>
+                </h3>
+              </div>
+              <div className="chub-active-model-card">
+                <div className="chub-active-model-head">
+                  <div>
+                    <div className="chub-active-model-name">{activeModel.name}</div>
+                    <div className="chub-active-model-provider">
+                      by {activeModel.provider}
+                    </div>
+                  </div>
+                  <span className="chub-active-tier">{activeModel.tier}</span>
+                </div>
+                <p className="chub-active-model-desc">
+                  OpenAI&apos;s most advanced multimodal model. Accepts text, images, and audio
+                  inputs and returns rich outputs for reasoning, coding, and analysis.
+                </p>
               </div>
             </div>
-          </div>
-
-          {/* Right: Results + Session history */}
-          <div className="chub-right">
-            {sessions.length === 0 ? (
-              <div className="chub-welcome-card">
-                <div className="chub-welcome-orb chub-welcome-orb-1" />
-                <div className="chub-welcome-orb chub-welcome-orb-2" />
-                <div className="chub-welcome-icon">🔮</div>
-                <h3 className="chub-welcome-title">Your recommendations appear here</h3>
-                <p className="chub-welcome-text">
-                  Type a question or pick a quick prompt on the left. We&apos;ll show the top 3 AI models that match your needs.
-                </p>
-                <div className="chub-welcome-features">
-                  <div className="chub-welcome-feat"><span>🎯</span> Match scoring</div>
-                  <div className="chub-welcome-feat"><span>📊</span> Capability breakdown</div>
-                  <div className="chub-welcome-feat"><span>💰</span> Pricing comparison</div>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Session tabs */}
-                {sessions.length > 1 && (
-                  <div className="chub-session-tabs">
-                    {sessions.map((s, index) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        className={`chub-session-tab${index === activeSessionIndex ? ' chub-session-tab-active' : ''}`}
-                        onClick={() => setActiveSessionIndex(index)}
-                      >
-                        <span className="chub-session-dot-sm" />
-                        <span className="chub-session-label">{s.query || 'Query'}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Active results */}
-                <div className="chub-active-results">
-                  <div className="chub-results-heading">
-                    <h3>Top matches for: <em>&ldquo;{activeSession.query}&rdquo;</em></h3>
-                    <span className="results-tag">✦ {activeSession.results.length} matches</span>
-                  </div>
-                  <ResultsSection results={activeSession.results || []} onModelClick={setSelectedModel} />
-                </div>
-              </>
-            )}
-          </div>
+          </aside>
         </div>
-
       </div>
-
-      {selectedModel && (
-        <ModelModal model={selectedModel} onClose={() => setSelectedModel(null)} />
-      )}
     </main>
   );
 }
+

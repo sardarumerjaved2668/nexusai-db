@@ -47,11 +47,15 @@ export default function Navbar() {
             <Link href="/chat-hub" className={`nav-link${pathname === '/chat-hub' ? ' nav-link-active' : ''}`}>
               💬 Chat Hub
             </Link>
-            <Link href="/" className={`nav-link${pathname === '/' ? ' nav-link-active' : ''}`}>
+            <Link href="/marketplace" className={`nav-link${pathname === '/marketplace' ? ' nav-link-active' : ''}`}>
               🛍 Marketplace
             </Link>
-            <span className="nav-link nav-link-muted">🤖 Agents</span>
-            <span className="nav-link nav-link-muted">🔬 Discover New</span>
+            <Link href="/agents" className={`nav-link${pathname === '/agents' ? ' nav-link-active' : ''}`}>
+              🤖 Agents
+            </Link>
+            <Link href="/discover-new" className={`nav-link${pathname === '/discover-new' ? ' nav-link-active' : ''}`}>
+              🔬 Discover New
+            </Link>
           </div>
 
           <div className="nav-lang-wrapper">
@@ -98,7 +102,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login" className={`nav-link${pathname === '/login' ? ' nav-link-active' : ''}`}>Sign in</Link>
-              <Link href="/register" className="btn-nav-cta">Get Started →</Link>
+              <Link href="/marketplace?model=gpt5&details=1" className="btn-nav-cta">Try free →</Link>
             </>
           )}
         </div>
